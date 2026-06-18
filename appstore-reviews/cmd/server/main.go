@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"appstore-reviews/internal/appstore"
+	"appstore-reviews/internal/store"
 )
 
 func main() {
@@ -22,4 +23,15 @@ func main() {
 			r.Title,
 		)
 	}
+
+	st, err := store.New()
+	if err != nil {
+		log.Fatalf("store init: %v", err)
+	}
+
+	added, err := st.Save(appID, reviews)
+	if err != nil {
+		log.Fatalf("save: %v", err)
+	}
+	log.Printf("saved %d", added)
 }
