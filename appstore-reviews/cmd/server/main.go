@@ -6,9 +6,11 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"net/http"
 
 	"appstore-reviews/internal/poller"
 	"appstore-reviews/internal/store"
+	"appstore-reviews/internal/api"
 )
 
 func main() {
@@ -19,6 +21,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("store init: %v", err)
 	}
+
+	h := api.New(st, 720 * time.Hour)
+	log.Println("listening on :8080")
+	log.Fatal(http.ListenAndServe(":8080", h.Routes()))
 
 	p := poller.New(st, appIDs, interval)
 
