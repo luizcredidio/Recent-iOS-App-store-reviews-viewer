@@ -5,19 +5,20 @@ import (
 	"log"
 	"os/signal"
 	"syscall"
-	"time"
 	"net/http"
 	"errors"
 
+	"appstore-reviews/internal/config"
 	"appstore-reviews/internal/poller"
 	"appstore-reviews/internal/store"
 	"appstore-reviews/internal/api"
 )
 
 func main() {
-	appIDs := []string{"595068606"}
-	interval := 30 * time.Second
-	reviewWindow := 720 * time.Hour
+	cfg, err := config.Load("config.json")
+	if err != nil {
+		log.Fatalf("config: %v", err)
+	}
 
 	st, err := store.New()
 	if err != nil {
@@ -27,18 +28,17 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	p := poller.New(st, appIDs, interval)
+	p := poller.New(st, cfg.AppIDs, cfg.PollInterval())
 	go p.Run(ctx)
 
-
-	h := api.New(st, reviewWindow)
+	h := api.New(st, cfg.ReviewWindow())
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    cfg.Addr,
 		Handler: h.Routes(),
 	}
 
 	go func() {
-	log.Printf("listening on %s", ":8080")
+	log.Printf("listening on %s", cfg.Addr)
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("server error: %v", err)
 	}

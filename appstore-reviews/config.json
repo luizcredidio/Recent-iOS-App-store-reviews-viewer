@@ -1,4 +1,6 @@
 {
-  "app_ids": [],
-  "polling_interval": ""
+  "addr": ":8080",
+  "pollIntervalSeconds": 15,
+  "reviewWindowHours": 720,
+  "appIDs": ["595068606", "284882215"]
 }
