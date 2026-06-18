@@ -1,122 +1,93 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useState, useCallback, useEffect } from 'react'
 import './App.css'
 
-function App() {
-  const [count, setCount] = useState(0)
+const API_BASE = 'http://localhost:8080'
+
+interface Review {
+  id: string
+  author: string
+  score: number
+  title: string
+  content: string
+  submittedAt: string
+  appVersion: string
+}
+
+type Status = 'idle' | 'loading' | 'error' | 'done'
+
+export default function App() {
+  const [appID, setAppID] = useState('595068606')
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [status, setStatus] = useState<Status>('idle')
+  const [error, setError] = useState('')
+
+  const loadReviews = useCallback(async (id: string) => {
+    setStatus('loading')
+    setError('')
+    try {
+      const res = await fetch(`${API_BASE}/reviews/${id}`)
+      if (!res.ok) throw new Error(`server returned ${res.status}`)
+      const data: Review[] | null = await res.json()
+      setReviews(data ?? [])
+      setStatus('done')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setStatus('error')
+    }
+  }, [])
+
+  useEffect(() => {
+    loadReviews(appID)
+  }, [])
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
+    <div className="page">
+      <h1>App Store Reviews</h1>
+      <p className="subtitle">Last 720 hours, newest first</p>
+
+      <div className="controls">
+        <input
+          className="app-input"
+          value={appID}
+          onChange={(e) => setAppID(e.target.value)}
+          placeholder="App ID"
+        />
+        <button className="load-btn" onClick={() => loadReviews(appID)}>
+          Load
         </button>
-      </section>
+      </div>
 
-      <div className="ticks"></div>
+      {status === 'loading' && <p>Loading…</p>}
+      {status === 'error' && <p className="feedback error">Error: {error}</p>}
+      {status === 'done' && reviews.length === 0 && (
+        <p className="feedback empty">No reviews in the last 48 hours.</p>
+      )}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      <ul className="review-list">
+        {reviews.map((r) => (
+          <ReviewCard key={r.id} review={r} />
+        ))}
+      </ul>
+    </div>
   )
 }
 
-export default App
+function ReviewCard({ review }: { review: Review }) {
+  return (
+    <li className="card">
+      <div className="card-header">
+        <span className="stars">{renderStars(review.score)}</span>
+        <span className="author">{review.author}</span>
+        <time className="date" dateTime={review.submittedAt}>
+          {new Date(review.submittedAt).toLocaleString()}
+        </time>
+      </div>
+      {review.title && <h3 className="card-title">{review.title}</h3>}
+      <p className="card-content">{review.content}</p>
+    </li>
+  )
+}
+
+function renderStars(score: number) {
+  return '★'.repeat(score) + '☆'.repeat(5 - score)
+}
