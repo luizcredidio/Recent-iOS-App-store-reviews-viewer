@@ -28,7 +28,11 @@ func (h *Handler) Routes() http.Handler {
 
 func (h *Handler) handleReviews(w http.ResponseWriter, r *http.Request) {
 	appID := strings.TrimPrefix(r.URL.Path, "/reviews/")
-
+	if appID == "" || strings.Contains(appID, "/") {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+	
 	all := h.store.Get(appID)
 	cutoff := time.Now().Add(-h.window)
 
