@@ -19,7 +19,10 @@ type FileStore struct {
 }
 
 func New() (*FileStore, error) {
-	dir := "data"
+	return NewFileStore("data")
+}
+
+func NewFileStore(dir string) (*FileStore, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create data folder: %w", err)
 	}
@@ -30,7 +33,7 @@ func New() (*FileStore, error) {
 	}
 
 	if err := fs.load(); err != nil {
-		return nil, fmt.Errorf(" failed to load existing reviews: %w", err)
+		return nil, fmt.Errorf("failed to load existing reviews: %w", err)
 	}
 	return fs, nil
 }
