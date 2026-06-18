@@ -7,6 +7,7 @@ import (
 	"syscall"
 	"time"
 	"net/http"
+	"errors"
 
 	"appstore-reviews/internal/poller"
 	"appstore-reviews/internal/store"
@@ -16,23 +17,34 @@ import (
 func main() {
 	appIDs := []string{"595068606"}
 	interval := 30 * time.Second
+	reviewWindow := 720 * time.Hour
 
 	st, err := store.New()
 	if err != nil {
 		log.Fatalf("store init: %v", err)
 	}
 
-	h := api.New(st, 720 * time.Hour)
-	log.Println("listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", h.Routes()))
-
-	p := poller.New(st, appIDs, interval)
-
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	log.Printf("starting poller: apps=%v interval=%s", appIDs, interval)
-	p.Run(ctx)
+	p := poller.New(st, appIDs, interval)
+	go p.Run(ctx)
 
-	log.Println("poller stopped")
+
+	h := api.New(st, reviewWindow)
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: h.Routes(),
+	}
+
+	go func() {
+	log.Printf("listening on %s", ":8080")
+	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Fatalf("server error: %v", err)
+	}
+	}()
+
+	<-ctx.Done()
+
+	log.Println("shut down")
 }
