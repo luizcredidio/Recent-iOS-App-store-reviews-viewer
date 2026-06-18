@@ -84,9 +84,14 @@ func (fs *FileStore) Save(appID string, incoming []review.Review) (int, error) {
 		}
 	}
 
+	if added == 0 {
+		return 0, nil
+	}
+
 	if err := fs.persistLocked(appID); err != nil {
 		return 0, err
 	}
+
 	return added, nil
 }
 

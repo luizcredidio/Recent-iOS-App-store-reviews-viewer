@@ -1,37 +1,32 @@
 package main
 
 import (
+	"context"
 	"log"
-	"appstore-reviews/internal/appstore"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"appstore-reviews/internal/poller"
 	"appstore-reviews/internal/store"
 )
 
 func main() {
-	const appID = "595068606"
-
-	reviews, err := appstore.FetchReviews(appID)
-	if err != nil {
-		log.Fatalf("failed to fetch reviews: %v", err)
-	}
-
-	log.Printf("fetched %d reviews for app %s", len(reviews), appID)
-	for _, r := range reviews {
-		log.Printf("%s | %d★ | %s | %s",
-			r.SubmittedAt.Format("2006-01-02 15:04"),
-			r.Score,
-			r.Author,
-			r.Title,
-		)
-	}
+	appIDs := []string{"595068606"}
+	interval := 30 * time.Second
 
 	st, err := store.New()
 	if err != nil {
 		log.Fatalf("store init: %v", err)
 	}
 
-	added, err := st.Save(appID, reviews)
-	if err != nil {
-		log.Fatalf("save: %v", err)
-	}
-	log.Printf("saved %d", added)
+	p := poller.New(st, appIDs, interval)
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	log.Printf("starting poller: apps=%v interval=%s", appIDs, interval)
+	p.Run(ctx)
+
+	log.Println("poller stopped")
 }
